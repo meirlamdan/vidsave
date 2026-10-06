@@ -44,8 +44,24 @@ jobs:
           irm https://tinyjs.app/install.ps1 | iex
           "$env:LOCALAPPDATA\tinyjs" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
 
+      # pwsh, with System32 first on PATH: tinyjs packs the zip with `tar -a`,
+      # which only Windows' own bsdtar turns into a zip. Git Bash's GNU tar
+      # silently writes a plain tar under the .zip name instead.
       - name: Build + package
-        run: tinyjs.cmd publish
+        shell: pwsh
+        run: |
+          $env:PATH = "$env:SystemRoot\System32;$env:PATH"
+          tinyjs.cmd publish
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+      - name: Check the zip is a real zip
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem dist/publish/*-win.zip
+          $sig = [IO.File]::ReadAllBytes($zip.FullName)[0..1]
+          if ($sig[0] -ne 0x50 -or $sig[1] -ne 0x4B) { throw "$($zip.Name) is not a zip archive" }
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          [IO.Compression.ZipFile]::OpenRead($zip.FullName).Entries | Select-Object FullName, Length
 
       - uses: actions/upload-artifact@v6
         with:
