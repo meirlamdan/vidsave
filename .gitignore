@@ -1,0 +1,14 @@
+# build output
+dist/
+.build/
+.publish-prev/
+node_modules/
+
+# local AI-assistant tooling
+.claude/
+.agents/
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini

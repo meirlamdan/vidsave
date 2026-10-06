@@ -1,0 +1,13 @@
+{
+  "name": "vidsave",
+  "title": "VidSave",
+  "size": "960x660",
+  "id": "com.meir.vidsave",
+  "version": "1.0.0",
+  "icon": "icon.png",
+  "minTinyjsVersion": "0.50.0",
+  "update": {
+    "url": "https://github.com/meirlamdan/vidsave/releases/latest/download/manifest.json",
+    "auto": "launch"
+  }
+}

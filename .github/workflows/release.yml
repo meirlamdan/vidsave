@@ -1,0 +1,127 @@
+# Builds VidSave for Windows and macOS and publishes a GitHub Release.
+#
+#   git tag v1.2.0 && git push origin v1.2.0
+#
+# The tag sets the version (tinyjs.json "version" is overwritten in CI).
+# Running the workflow by hand (Actions → Release → Run workflow) only builds
+# and keeps the files as workflow artifacts, without making a release.
+#
+# The release carries manifest.json, which the app checks for updates at
+# https://github.com/<owner>/<repo>/releases/latest/download/manifest.json
+# (tinyjs.json "update.url").
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  TINYJS_VERSION: v0.50.0
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          jq --arg v "${GITHUB_REF_NAME#v}" '.version = $v' tinyjs.json > tinyjs.tmp && mv tinyjs.tmp tinyjs.json
+          jq -r .version tinyjs.json
+
+      - name: Install tinyjs
+        shell: pwsh
+        run: |
+          irm https://tinyjs.app/install.ps1 | iex
+          "$env:LOCALAPPDATA\tinyjs" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+
+      - name: Build + package
+        run: tinyjs.cmd publish
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/publish/*
+          if-no-files-found: error
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          jq --arg v "${GITHUB_REF_NAME#v}" '.version = $v' tinyjs.json > tinyjs.tmp && mv tinyjs.tmp tinyjs.json
+          jq -r .version tinyjs.json
+
+      - name: Install tinyjs
+        run: |
+          curl -fsSL https://tinyjs.app/install | TINYJS_NO_MODIFY_PATH=1 sh
+          echo "$HOME/.tinyjs" >> "$GITHUB_PATH"
+
+      # One build per CPU. Each publish keeps the previous arch's zip and
+      # merges both into one manifest; --dmg makes the human download.
+      # (Not notarized — there's no Apple Developer ID; see README.)
+      - name: Build + package (Apple Silicon)
+        run: tinyjs publish --arch arm64 --dmg
+
+      - name: Build + package (Intel)
+        run: tinyjs publish --arch x86_64 --dmg
+
+      - name: Collect files
+        run: |
+          mkdir -p out
+          cp dist/*.dmg dist/publish/* out/
+          ls -la out
+          cat out/manifest.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: out/*
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+
+      # One manifest for every OS: macOS owns the top level + the per-arch
+      # "mac" block, Windows the "win" block (with its own version inside).
+      - name: Merge update manifests
+        run: |
+          jq -s '.[0] + { win: (.[1].win + { version: .[1].version }) }' \
+            macos/manifest.json windows/manifest.json > manifest.json
+          cat manifest.json
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "VidSave ${GITHUB_REF_NAME#v}" \
+            --generate-notes \
+            macos/*.dmg macos/*.zip windows/*.zip manifest.json
+
+      # A dead link here means an updater that fails silently on users' machines.
+      - name: Check download links
+        run: |
+          sleep 10
+          for u in $(jq -r '[.url, .mac[].url, .win.url] | .[]' manifest.json) \
+                   "https://github.com/$GITHUB_REPOSITORY/releases/latest/download/manifest.json"; do
+            echo "$u"
+            curl -fsSLI -o /dev/null "$u"
+          done

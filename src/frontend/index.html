@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>VidSave – Video & Audio Downloader</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="M12 3v11m0 0l-4.5-4.5M12 14l4.5-4.5M5 19h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div>
+      <h1>VidSave</h1>
+      <p class="sub" data-i18n="app.tagline"></p>
+    </div>
+  </div>
+  <button class="icon-btn" id="settingsBtn" data-i18n-title="settings">
+    <!-- Settings: three slider tracks with knobs. -->
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+      <path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/>
+      <circle cx="15" cy="6" r="2" fill="var(--panel)"/>
+      <circle cx="9" cy="12" r="2" fill="var(--panel)"/>
+      <circle cx="17" cy="18" r="2" fill="var(--panel)"/>
+    </svg>
+  </button>
+</header>
+
+<div class="banner hidden" id="setupBanner">
+  <span id="setupText"></span>
+  <div class="bar setup-bar hidden" id="setupBar"><i></i></div>
+  <button class="btn primary sm" id="setupAction"></button>
+</div>
+
+<div class="banner update-banner hidden" id="updateBanner">
+  <div class="upd-text">
+    <span id="updateText"></span>
+    <span class="muted small" id="updateNotes" dir="auto"></span>
+  </div>
+  <div class="upd-acts">
+    <button class="btn primary sm" id="updateInstall" data-i18n="upd.install"></button>
+    <button class="icon-btn sm" id="updateDismiss" data-i18n-title="close">
+      <svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7 7 17" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+</div>
+
+<main class="layout">
+  <section class="left">
+    <form class="urlbar" id="urlForm">
+      <div class="url-field">
+        <svg class="url-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+        <input id="url" type="text" spellcheck="false" autocomplete="off" data-i18n-ph="url.placeholder">
+        <span class="url-spin hidden" id="urlSpin" aria-hidden="true"></span>
+        <button type="button" class="clear-x hidden" id="clearUrl" data-i18n-title="clearInput">
+          <svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7 7 17" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+    </form>
+    <div class="error hidden" id="probeError"></div>
+    <div class="hint hidden" id="urlHint" data-i18n="hint.notYouTube"></div>
+
+    <div class="empty" id="emptyState">
+      <div class="empty-art" aria-hidden="true">
+        <svg viewBox="0 0 64 64"><rect x="6" y="14" width="52" height="36" rx="10" fill="currentColor" opacity=".12"/><path d="M27 24v16l13-8z" fill="currentColor" opacity=".55"/></svg>
+      </div>
+      <h2 data-i18n="empty.title"></h2>
+      <p><span data-i18n="empty.body"></span><br><span data-i18n="empty.drag"></span></p>
+    </div>
+
+    <div class="card preview loading hidden" id="loadingState" aria-live="polite">
+      <div class="pv-media sk"></div>
+      <div class="pv-info">
+        <div class="sk sk-line" style="width: 85%"></div>
+        <div class="sk sk-line" style="width: 55%"></div>
+        <div class="loading-text"><span class="url-spin"></span><span data-i18n="loading"></span></div>
+      </div>
+    </div>
+
+    <div class="card preview hidden" id="preview">
+      <div class="pv-media">
+        <img id="pvThumb" alt="">
+        <span class="badge dur" id="pvDur"></span>
+      </div>
+      <div class="pv-info">
+        <h2 id="pvTitle" dir="auto"></h2>
+        <div class="muted" id="pvMeta"></div>
+        <button class="link hidden" id="loadPlaylistBtn" data-i18n="loadPlaylist"></button>
+      </div>
+    </div>
+
+    <div class="card playlist hidden" id="playlist">
+      <div class="pl-head">
+        <label class="check"><input type="checkbox" id="plAll" checked><span data-i18n="selectAll"></span></label>
+        <span class="muted" id="plCount"></span>
+      </div>
+      <ul id="plList"></ul>
+    </div>
+
+    <div class="card options hidden" id="options">
+      <div class="seg" id="modeSeg">
+        <button type="button" data-mode="video" class="on">
+          <svg viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 10.5l5-3v9l-5-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+          <span data-i18n="mode.video"></span>
+        </button>
+        <button type="button" data-mode="audio">
+          <svg viewBox="0 0 24 24"><path d="M9 18V6l11-2v12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="6.5" cy="18" r="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="17.5" cy="16" r="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+          <span data-i18n="mode.audio"></span>
+        </button>
+      </div>
+
+      <!-- Same order in both modes: format first, then quality. -->
+      <div class="grid2" id="videoOpts">
+        <label class="field">
+          <span data-i18n="format"></span>
+          <select id="container">
+            <option value="mp4" data-i18n="container.mp4"></option>
+            <option value="mkv" data-i18n="container.mkv"></option>
+            <option value="webm">WEBM</option>
+          </select>
+        </label>
+        <label class="field">
+          <span data-i18n="quality"></span>
+          <select id="quality"></select>
+        </label>
+      </div>
+
+      <div class="grid2 hidden" id="audioOpts">
+        <label class="field">
+          <span data-i18n="format"></span>
+          <select id="audioFormat">
+            <option value="mp3">MP3</option>
+            <option value="m4a" data-i18n="audio.m4a"></option>
+            <option value="opus" data-i18n="audio.opus"></option>
+            <option value="flac" data-i18n="audio.flac"></option>
+            <option value="wav" data-i18n="audio.wav"></option>
+          </select>
+        </label>
+        <label class="field" id="bitrateField">
+          <span data-i18n="bitrate"></span>
+          <select id="audioBitrate"></select>
+        </label>
+      </div>
+
+      <details class="adv">
+        <summary data-i18n="advanced"></summary>
+        <div class="adv-body">
+          <div class="trim">
+            <div class="trim-head">
+              <span class="trim-title" data-i18n="trim"></span>
+              <span class="trim-len" id="trimLen"></span>
+              <button type="button" class="link sm hidden" id="trimReset" data-i18n="trim.reset"></button>
+            </div>
+            <!-- The timeline follows the page direction, so each handle sits
+                 above its field: start on the right in Hebrew/Arabic. -->
+            <div class="trim-range hidden" id="trimRange">
+              <div class="trim-track"><i id="trimFill"></i></div>
+              <input type="range" id="trimStartR" min="0" step="1" aria-labelledby="trimStartLbl">
+              <input type="range" id="trimEndR" min="0" step="1" aria-labelledby="trimEndLbl">
+            </div>
+            <div class="grid2">
+              <label class="field">
+                <span id="trimStartLbl" data-i18n="trimStart"></span>
+                <input id="trimStart" class="ltr-value" placeholder="0:00" spellcheck="false" autocomplete="off">
+              </label>
+              <label class="field">
+                <span id="trimEndLbl" data-i18n="trimEnd"></span>
+                <input id="trimEnd" class="ltr-value" data-i18n-ph="trimEnd.ph" spellcheck="false" autocomplete="off">
+              </label>
+            </div>
+            <div class="trim-err hidden" id="trimErr"></div>
+          </div>
+          <label class="check"><input type="checkbox" id="embedThumb" checked><span data-i18n="embedThumb"></span></label>
+          <label class="check"><input type="checkbox" id="embedMeta" checked><span data-i18n="embedMeta"></span></label>
+          <label class="check" id="subsRow"><input type="checkbox" id="subs"><span data-i18n="subs"></span></label>
+          <label class="check"><input type="checkbox" id="sponsor"><span data-i18n="sponsor"></span></label>
+        </div>
+      </details>
+
+      <div class="dest">
+        <div class="dest-path">
+          <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+          <span id="outDir" dir="ltr"></span>
+        </div>
+        <button type="button" class="btn ghost sm" id="changeDir" data-i18n="change"></button>
+      </div>
+
+      <button class="btn primary big" id="downloadBtn">
+        <svg viewBox="0 0 24 24"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span id="downloadLbl"></span>
+      </button>
+    </div>
+  </section>
+
+  <aside class="right card">
+    <div class="tabs">
+      <button class="tab on" data-tab="queue"><span data-i18n="tab.downloads"></span> <span class="count" id="queueCount"></span></button>
+      <button class="tab" data-tab="history" data-i18n="tab.history"></button>
+      <button class="link sm clear" id="clearBtn" data-i18n="clear"></button>
+    </div>
+    <ul class="list" id="queueList"></ul>
+    <ul class="list hidden" id="historyList"></ul>
+    <div class="list-empty" id="listEmpty"></div>
+  </aside>
+</main>
+
+<div class="scrim hidden" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="drawer-head">
+    <h2 data-i18n="settings"></h2>
+    <button class="icon-btn" id="closeDrawer" data-i18n-title="close">
+      <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+  <div class="drawer-body">
+    <label class="field">
+      <span data-i18n="set.language"></span>
+      <select id="language"></select>
+    </label>
+    <label class="field">
+      <span data-i18n="set.concurrency"></span>
+      <select id="concurrency">
+        <option value="1">1</option><option value="2">2</option>
+        <option value="3">3</option><option value="4">4</option>
+      </select>
+    </label>
+    <label class="check"><input type="checkbox" id="notifyDone" checked><span data-i18n="set.notify"></span></label>
+    <label class="check"><input type="checkbox" id="autoPaste" checked><span data-i18n="set.autoPaste"></span></label>
+    <label class="check"><input type="checkbox" id="plFolder" checked><span data-i18n="set.plFolder"></span></label>
+
+    <h3 data-i18n="set.network"></h3>
+    <label class="check"><input type="checkbox" id="systemCerts"><span data-i18n="set.systemCerts"></span></label>
+    <p class="muted small" data-i18n="set.systemCertsHelp"></p>
+
+    <h3 data-i18n="set.components"></h3>
+    <div class="comp">
+      <div><b>yt-dlp</b><div class="muted" id="ytdlpInfo">…</div></div>
+      <button class="btn ghost sm" id="updateYtdlp"></button>
+    </div>
+    <div class="comp">
+      <div><b>ffmpeg</b><div class="muted" id="ffmpegInfo">…</div></div>
+      <button class="btn ghost sm hidden" id="installFfmpeg" data-i18n="set.install"></button>
+    </div>
+    <p class="muted small" data-i18n="set.updateHelp"></p>
+
+    <h3 data-i18n="set.app"></h3>
+    <div class="comp">
+      <div><b>VidSave</b><div class="muted" id="appInfo">…</div></div>
+      <button class="btn ghost sm" id="checkAppUpdate" data-i18n="upd.check"></button>
+    </div>
+  </div>
+</aside>
+
+<div class="toast" id="toast"></div>
+
+<dialog class="confirm" id="confirmDlg">
+  <form method="dialog">
+    <h3 id="confirmMsg"></h3>
+    <p class="muted" id="confirmDetail"></p>
+    <div class="confirm-acts">
+      <button class="btn ghost sm" value="cancel" id="confirmCancel" data-i18n="act.cancel"></button>
+      <button class="btn primary sm" value="ok" id="confirmOk"></button>
+    </div>
+  </form>
+</dialog>
+
+<script src="i18n.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
