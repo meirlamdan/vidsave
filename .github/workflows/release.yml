@@ -47,7 +47,7 @@ jobs:
       - name: Build + package
         run: tinyjs.cmd publish
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: windows
           path: dist/publish/*
@@ -85,7 +85,7 @@ jobs:
           ls -la out
           cat out/manifest.json
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: macos
           path: out/*
